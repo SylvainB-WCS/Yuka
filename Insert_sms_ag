@@ -1,0 +1,31 @@
+DELIMITER //
+CREATE DEFINER=`user`@`host` PROCEDURE `insert_sms_ag`(IN table_name VARCHAR(30))
+BEGIN
+
+  SET @table_name = table_name;
+  SET @table_insert = 'INSERT INTO sms_ag';
+
+  SET @sql_insert1 = CONCAT('SELECT DISTINCT(s.CLIENT), COUNT(s.to_nb) as `Compte`, COUNT(DISTINCT(s.to_nb)) as Uniques, s.from_nb as Expediteur, 
+  date_format(s.receive_date, "%Y/%m/%d %H") as Time,
+  CASE 
+      WHEN s.`status` LIKE "MULTIPART%" THEN "MULTIPART"
+      ELSE s.`status`
+  END
+  as `statut`,
+  CASE 
+      WHEN (LENGTH(s.`to_nb`)>7 AND LEFT(s.`to_nb`,2)="+0") THEN SUBSTRING(s.`to_nb`, 3, 3)
+      WHEN (LENGTH(s.`to_nb`)>7 AND LEFT(s.`to_nb`,1)="+" AND LEFT(s.`to_nb`,2)!="+0") THEN SUBSTRING(s.`to_nb`, 2, 3)
+      WHEN (LENGTH(s.`to_nb`)>7 AND LEFT(s.`to_nb`,1)!="+") THEN SUBSTRING(s.`to_nb`, 1, 3)
+      ELSE NULL
+  END
+  AS Indicateur
+  FROM ', @table_name,' s 
+  GROUP BY CLIENT, Indicateur, Expediteur, Time, `statut`);
+
+  SET @requete = CONCAT(@table_insert,'(',@sql_insert1,')');
+
+  PREPARE stmt1 FROM @requete;
+  EXECUTE stmt1;
+  DEALLOCATE PREPARE stmt1;
+  END //
+DELIMITER ;
