@@ -1,0 +1,204 @@
+## Script de retraitement des données financières V6:
+## Changelog :
+## V6 : 
+## Gestion des updates sur une même plage temporelle
+## V5 : 
+## Optimisations de la mise à jour des données 
+## V4 :
+## Ajout d'un module de véridication pour éviter l'ajout de duplicatas
+## V3 :
+## Détection de la borne supérieure temporelle de l'extract Excel
+## Création d'une table par année
+## V2 :
+## Ajout d'un module d'importation sur base de données (MySQL, SQLAlchemy)
+
+## Librairies nécessaires pour le bon fonctionnement :
+## pandas (intègre Numpy) : manipulation de dataframes
+## mysql.connector : connexion à la BDD
+## sqlalchemy : push de données sur la BDD
+
+
+## Imports, date d'exécution et fonction de vérification :
+
+import pandas as pd
+import numpy as np
+from datetime import date, datetime
+
+## Connexion BDD : test local 
+
+import mysql.connector
+from sqlalchemy import create_engine
+
+## Informations de connexion à la BDD locale :
+host = "********"
+user = "***********"
+password = "****************"
+database = "***********"
+port = "*****"
+
+var_connec = "mysql+mysqlconnector://{}:{}@{}:{}/{}".format(user,
+                                                            password,
+                                                            host,
+                                                            port,
+                                                            database)
+
+
+## Fonction de vérification (numéro de compte ou code de transaction?)
+def isfloat(value):
+  try:
+    float(value)
+    return True
+  except ValueError:
+    return False
+
+## Coeur du traitement :
+liste_code = []
+liste_libelle_code = []
+liste_libelle_compte = []
+liste_compte = []
+liste_debit = []
+liste_credit = []
+liste_solde = []
+
+## Importation du fichier source (on récupère la période des données notée en haut du document)
+## L'exportation à la base se fait sur une année : on récupère juste la date de fin de période, qui sera pour l'année complète
+## On ne nomme que les colonnes qui vont nous servir par la suite ([0,2,9,12,15]), le reste est nommé ''
+## On ne prend pas en compte les deux dernières lignes (totaux) car reconstructibles par la suite
+link = "Balance analytique.xlsx"
+
+df_source_total = pd.read_excel(io =link, sheet_name = 'Balance analytique',
+                                names = ['Code_Produit','','Produit','','','','','','','Debit','','','Credit','','','Solde','',''],
+                                header = None
+                               )
+
+## On récupère les dates de l'extract :
+date_debut_extract = df_source_total.iloc[1,16]
+date_fin_extract = df_source_total.iloc[2,16]
+
+## Sous-totaux du nouveau document :
+
+tot_new_debit = df_source_total.iloc[-1,9]
+tot_new_credit = df_source_total.iloc[-1,12]
+tot_new_solde = df_source_total.iloc[-1,15]
+
+## On s'affranchit des colonnes inutiles (non nommées)/ lignes en en-tête inutiles :
+df_source_reduit = df_source_total[['Code_Produit','Produit','Debit','Credit','Solde']][12:-2]
+
+## On s'affranchit des lignes de totaux :
+df2 = df_source_reduit[df_source_reduit['Code_Produit']!='Total']
+
+## On reset l'index du nouveau dataframe :
+df2.reset_index(drop = True, inplace = True)
+
+## On regarde, pour chaque ligne du fichier source, si la première case contient une chaine de caractère
+## contenant seulement des chiffres (numéro de compte) ou non (code produit)
+## Si c'est un code produit, on l'enregistre dans une variable "code", et on sait qu'un code produit est suivi
+## de transactions associées sur un ou plusieurs comptes
+## Si c'est un numéro de compte, on enregistre les différentes données associées (crédit, débit, solde etc)
+
+for j in df2.index:
+    if isfloat(df2.iloc[j,0]) == False :
+        code = df2.iloc[j,0]
+        libelle_code = df2.iloc[j,1]
+    else :
+        compte = df2.iloc[j,0]
+        libelle_compte = df2.iloc[j,1]
+        debit = df2.iloc[j,2]
+        credit = df2.iloc[j,3]
+        solde = df2.iloc[j,4]
+
+    ## On enregistre le code, le libellé du produit, le numéro de compte, le débit, crédit et solde associés 
+    ## dans une liste (une liste par catégorie d'élément)
+        liste_code.append(code)
+        liste_libelle_code.append(libelle_code)
+        liste_libelle_compte.append(libelle_compte)
+        liste_compte.append(compte)
+        liste_debit.append(debit)
+        liste_credit.append(credit)
+        liste_solde.append(solde)
+
+## On assemble les éléments de ces listes dans un dictionnaire : la clé est le nom de la colonne,
+## la valeur est la liste associée
+dict_col = {'Code_Transaction' : liste_code, 'Libelle_Transaction' : liste_libelle_code,'Compte' :liste_compte,
+            'Libelle_Compte' : liste_libelle_compte, 'Debit' : liste_debit,'Credit' : liste_credit,'Solde' : liste_solde}
+
+## On crée le dataframe associé au dictionnaire :
+resultat = pd.DataFrame(dict_col)
+## On insère les dates de début et de fin d'extract
+resultat['date_debut_extract'] = date_debut_extract.date()
+resultat['date_fin_extract'] = date_fin_extract.date()
+
+
+## Connexion sqlalchemy: 
+
+engine = create_engine(var_connec, echo=False)
+
+## On lit les données de la table balance_analytique, si elle existe, afin de les ajouter à la suite
+## On va garder en mémoire les différents totaux (débit, crédit et solde) afin, quand on ajoutera les nouvelles données
+## de vérifier si on a pas eu de pertes entre temps
+
+read_previous_table = ("""SELECT * FROM `balance_analytique`""")
+
+## On essaye de lire la table déjà existante
+## Si on peut, on récupère ses différents totaux
+## Sinon (table non existante ou vide?, retournant une erreur), on met ses totaux à 0 et on définit la table combinée, 
+## résultant de la concaténation entre l'ancienne table et les nouvelles données comme étant seulement les nouvelles données
+try:
+    previous_table = pd.read_sql(read_previous_table,engine)
+except Exception:
+    previous_debit = 0
+    previous_credit = 0
+    previous_solde = 0
+    table_combinee = resultat
+else :
+    previous_debit = previous_table['Debit'].sum()
+    previous_credit = previous_table['Credit'].sum()
+    previous_solde = previous_table['Solde'].sum()
+
+    table_combinee = pd.concat([previous_table, resultat], axis = 0)
+
+## On supprime les données en double (! point sensible), en priorisant les données déjà en place dans la database
+table_finale = table_combinee.drop_duplicates(subset = None, keep='first')
+# table_finale.reset_index(drop = True, inplace = True)
+# table_finale.index += 1
+
+## On définit les nouveaux totaux de colonnes, afin de vérifier ensuite si on n'a pas supprimé de données qui ne devaient pas l'être
+tot_credit = table_finale['Credit'].sum()
+tot_debit = table_finale['Debit'].sum()
+tot_solde = table_finale['Solde'].sum()
+
+## Pour gérer l'ajout de nouvelles données sur une plage déjà existante, on regarde la table finale sur cette plage
+## Si les totaux (débit crédit solde) du document excel importé et de la table finale correspondent,
+## Alors on n'a pas perdu de données
+
+table_extract = table_finale[(table_finale['date_debut_extract'] == date_debut_extract.date())
+                             & (table_finale['date_fin_extract'] == date_fin_extract.date())]
+
+table_extract_credit = table_extract['Credit'].sum()
+table_extract_debit = table_extract['Debit'].sum()
+table_extract_solde = table_extract['Solde'].sum()
+
+
+## On exporte le résultat dans la table cible si les totaux correspondent :
+## On vérifie que :
+## Pour chaque colonne (débit, crédit, solde), le nouveau total est égal à l'ancien + le total des nouvelles données ( ajout d'une nouvelle plage de données)
+## Pour chaque colonne, le total sur la période de l'extract correspond au total après traitement ( ajout de nouvelles données pour une plage déjà dans la BDD)
+if (((tot_debit == previous_debit + tot_new_debit) and (tot_credit == previous_credit + tot_new_credit) and (tot_solde == previous_solde + tot_new_solde))
+    or ((table_extract_debit == tot_new_debit) and (table_extract_credit == tot_new_credit) and (table_extract_solde == tot_new_solde))):
+    
+    table_finale.to_sql("balance_analytique",
+                   con=engine,
+                   if_exists='replace',
+                   index=False,
+                   chunksize=500
+                  )
+
+else:
+    table_finale.to_sql("balance_a_verifier",
+           con=engine,
+           if_exists='replace',
+           index=False,
+           chunksize=500
+          )
+    
+    raise ValueError("Totaux non concordants \n Nouvelles données enregistrées dans une table temporaire dans la base \n Vérifiez l’intégrité du fichier Excel et la non-superposition des plages temporelles de l’extract")
