@@ -1,3 +1,4 @@
+DELIMITER //
 BEGIN
 
   DECLARE done INT DEFAULT FALSE;
@@ -28,4 +29,6 @@ BEGIN
   END LOOP;
 
   CLOSE cur1;
-END
+  
+END //
+DELIMITER ;
