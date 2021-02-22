@@ -1,0 +1,31 @@
+BEGIN
+
+  DECLARE done INT DEFAULT FALSE;
+  DECLARE a CHAR(20);
+  DECLARE b INT;
+  DECLARE cur1 CURSOR FOR SELECT `TABLE_NAME`,`Processed` FROM meta;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+  
+  OPEN cur1;
+  ag_loop: LOOP
+    FETCH cur1 INTO a, b;
+    IF done THEN
+      LEAVE ag_loop;
+    END IF;
+
+    IF b = 0 THEN
+      CALL insert_sms_ag(a);
+      CALL insert_sms_op_ag(a);  
+      CALL create_sms_ref_temp();
+      CALL insert_sms_ref(a);
+      CALL insert_sms_classification();
+      
+      UPDATE meta
+        SET `Processed` = 1
+        WHERE `TABLE_NAME` = a;
+        SET b = 1;
+    END IF;
+  END LOOP;
+
+  CLOSE cur1;
+END
