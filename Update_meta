@@ -1,0 +1,31 @@
+BEGIN
+  DECLARE done INT DEFAULT FALSE;
+  DECLARE c CHAR(20);
+  DECLARE cur3 CURSOR FOR SELECT `TABLE_NAME`
+    FROM information_schema.tables
+    WHERE table_type='BASE TABLE' 
+    AND table_schema='DATA'
+    AND TABLE_NAME != 'indicatiftel'
+    AND TABLE_NAME != 'meta'
+    AND TABLE_NAME != 'sms_op_ag'
+    AND TABLE_NAME != 'sms_ag'
+    AND TABLE_NAME != 'sms_classification'
+    AND TABLE_NAME != 'sms_references'
+    AND TABLE_NAME != 'sms_ref_temp';
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+  
+  OPEN cur3;
+  update_meta: LOOP
+    FETCH cur3 INTO c;
+    IF done THEN
+      LEAVE update_meta;
+    END IF;
+
+    INSERT INTO meta (TABLE_NAME, `Processed`)
+    SELECT * FROM (SELECT c, 0) AS tmp
+    WHERE NOT EXISTS (
+        SELECT TABLE_NAME FROM meta WHERE TABLE_NAME = c
+    ) LIMIT 1;
+  END LOOP;
+  CLOSE cur3;
+END
