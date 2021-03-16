@@ -41,10 +41,11 @@ Le script gère l'importation du fichier Excel, la sauvegarde des plages tempore
 
 Ce projet personnel s'articule autour de la construction, via du scraping, d'une liste de film pouvant m'intéresser. Pour cela, un premier scraping du site "subscene" (site mettant à disposition des sous-titres) permet de mettre en évidence les nouveaux films disponibles en téléchargement, filtrés selon leur popularité et leur langue.
 ![Scraping_Subscene](https://i.imgur.com/TOPVKaf.png)
+
 On constitue alors une liste de ces nouveaux films populaires, qu'on va compléter avec de nouvelles informations scrapées sur le site IMDB, telles que sa note, son genre, sa durée ainsi que l'affiche du film.
 ![Scraping_IMDB](https://i.imgur.com/07KsSaU.png)
 
 Le résultat, affiché via une fonction HTML, est le suivant :
 ![Resultat_scraping](https://i.imgur.com/cDdOCWH.png)
 
-C'est ce tableau qui me sera envoyé par mail afin que je puisse choisir le film qui m'intéresse
+C'est ce tableau qui me sera envoyé par mail afin que je puisse choisir le film qui m'intéresse.
