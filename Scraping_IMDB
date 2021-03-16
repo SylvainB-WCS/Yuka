@@ -1,0 +1,110 @@
+## Imports
+import pandas as pd
+import numpy as np
+from bs4 import BeautifulSoup
+import requests
+
+def scrap_all():
+  ## SUBSCENE ##
+
+  individual_url = ""
+  liste_url = []
+  pattern_sub = "/subtitles/"
+  langue = "/english/"
+  url_title = pd.DataFrame(columns =['Titre','Url'])
+  prefix_url = "https://subscene.com"
+  liste_liens_imdb = []
+  liste_liens_subscene = []
+
+  ## Scraping :
+
+  url = "https://subscene.com/browse/popular/film/1"
+
+  html_true = requests.get(url)
+
+  soup_true = BeautifulSoup(html_true.text, 'html.parser')
+
+  contenu_film_url = soup_true.find_all("a")
+
+  ## Récupération url
+
+  for element in contenu_film_url:
+    individual_url = element.get("href")
+    if pattern_sub in individual_url:
+      if langue in individual_url:
+        liste_url.append(individual_url)
+
+  ## Récupération lien à partir de l'url  + nom du film
+  for each in liste_url:
+    url_each = each
+    titre_each = each.split("/subtitles/")[1].split('/english/')[0]
+    new_value = {'Titre' : titre_each, 'Url' : prefix_url + url_each}
+    url_title = url_title.append(new_value, ignore_index=True)
+
+  ## Suppression duplicates
+  url_title.drop_duplicates(subset = 'Titre',inplace=True)
+  url_title.reset_index(drop = True, inplace = True)
+
+  ## Récupération des URL IMDB :
+
+  for each_url in url_title['Url']:
+    html_subscene = requests.get(each_url)
+    soup_subscene = BeautifulSoup(html_subscene.text, 'html.parser')
+    contenu_lien_subscene = soup_subscene.find_all('a', {'class':'imdb'})
+    lien_imdb = contenu_lien_subscene[0].get("href")
+    liste_liens_imdb.append(lien_imdb)
+
+  ## Ajout dans le DataFrame :
+
+  url_title['lien_imdb'] = liste_liens_imdb
+
+  ##
+  ## IMDB : ##
+
+  ## Variables locales :
+
+  nom_imdb = ''
+  duree_imdb = ''
+  note_imdb = ''
+  genre_imdb = ''
+  image_imdb = ''
+
+  ## DF Vide :
+
+  resultat_imdb = pd.DataFrame(columns=['Titre','Note','Image','Genres','Duree'])
+
+  ## Boucle :
+
+  for i in range(len(url_title)):
+    film = url_title.iloc[i,2]
+
+    html_imdb = requests.get(film)
+    soup_imdb= BeautifulSoup(html_imdb.text, 'html.parser')
+
+    ## Nom du film  :
+    find_nom = soup_imdb.find_all('h1', {'class':''})
+    nom_imdb = find_nom[0].get_text().replace('\xa0',' ').strip()
+
+    ## Genre(s):
+    find_genre = soup_imdb.select('.subtext')
+    genre_imdb = find_genre[0].get_text().split('|')[2].replace('\n','')
+
+    ## Durée du film :
+    find_duree = soup_imdb.select('.subtext time')
+    duree_imdb = find_duree[0].get_text().strip()
+
+    ## Note du film :
+    find_note = soup_imdb.select('.ratingValue span')
+    note_imdb = find_note[0].get_text()
+
+    ## Image du film :
+    find_image = soup_imdb.select('.poster img')
+    image_imdb = find_image[0].get('src')
+
+    ## Dans le DF :
+    row= {'Titre': nom_imdb, 'Note' : note_imdb ,'Image' : image_imdb, 'Genres' : genre_imdb,'Duree' : duree_imdb}
+    resultat_imdb = resultat_imdb.append(row,ignore_index=True)
+
+    resultat_imdb['Lien Subscene'] = url_title['Url']
+  
+  return resultat_imdb
