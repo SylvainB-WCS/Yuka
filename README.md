@@ -7,7 +7,7 @@ Celle-ci sera lue par un outil de dashboarding afin de pouvoir réaliser différ
 
 - Le fichier Script contient le code permettant l'importation, le traitement et l'exportation vers la base de données MySQL du fichier du département Finance, à l'origine sous la forme d'un Excel résultant d'une exécution logicielle
 
-En plus des codes développés pendant ce stage, j'ai intégré le travail sur un projet personnel : un projet autour de IMDB. Il sera abordé plus en détail dans sa sous-section (Python).
+En plus des codes développés pendant ce stage, j'ai intégré le travail sur un projet personnel : un projet autour de IMDB. Il sera abordé plus en détail dans sa sous-section (Python/Scraping_IMDB). 
 
 ## Plus en détail ##
 ## SQL ##
@@ -39,7 +39,7 @@ Le script gère l'importation du fichier Excel, la sauvegarde des plages tempore
 
 ### Projet_IMDB :
 
-Ce projet personnel s'articule autour de la construction, via du scraping, d'une liste de film pouvant m'intéresser. Pour cela, un premier scraping du site "subscene" (site mettant à disposition des sous-titres) permet de mettre en évidence les nouveaux films disponibles en téléchargement, filtrés selon leur popularité et leur langue.
+Ce projet personnel, toujours en cours de réalisation, s'articule autour de la construction, via du scraping, d'une liste de film pouvant m'intéresser. Pour cela, un premier scraping du site "subscene" (site mettant à disposition des sous-titres) permet de mettre en évidence les nouveaux films disponibles en téléchargement, filtrés selon leur popularité et leur langue.
 ![Scraping_Subscene](https://i.imgur.com/TOPVKaf.png)
 
 On constitue alors une liste de ces nouveaux films populaires, qu'on va compléter avec de nouvelles informations scrapées sur le site IMDB, telles que sa note, son genre, sa durée ainsi que l'affiche du film.
