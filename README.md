@@ -9,8 +9,7 @@ Celle-ci sera lue par un outil de dashboarding afin de pouvoir réaliser différ
 
 En plus des codes développés pendant ce stage, j'ai intégré le travail sur un projet personnel : un projet autour de IMDB. Il sera abordé plus en détail dans sa sous-section (Python/Scraping_IMDB). 
 
-## Plus en détail ##
-## SQL ##
+## Plus en détail : SQL ##
 ### SMS_Update_meta :
 
 Les données SMS étant sous la forme d'une table par mois, ajoutée en début du mois M pour les données du mois M-1, il faut automatiser un processus de traitement de ces données dès leur ajout.
@@ -29,7 +28,7 @@ Une mise à jour de la table Meta s'en suit pour signifier la prise en compte de
 Cette procédure stockée permet de grouper les données présentes sur une table SMS d'un mois selon différents critères établis (Client, indicatif téléphonique, statut du SMS etc) et d'insérer cette agrégation dans la table agrégée correspondante.
 
 
-## Python ##
+## Plus en détail : Python ##
 ### Script_finance :
 
 Ce script permet le traitement des données du Département Finance, initialement sous la forme d'un Excel ne pouvant être importé directement sur la base de données en raison de son formatage.
