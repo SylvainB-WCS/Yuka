@@ -43,6 +43,7 @@ Ce projet personnel s'articule autour de la construction, via du scraping, d'une
 ![Scraping_Subscene](https://i.imgur.com/rOqUB68.png)
 On constitue alors une liste de ces nouveaux films populaires, qu'on va compléter avec de nouvelles informations scrapées sur le site IMDB, telles que sa note, son genre, sa durée ainsi que l'affiche du film.
 ![Scraping_IMDB](https://i.imgur.com/ZiJXFwz.png)
+
 Le résultat, affiché via une fonction HTML, est le suivant :
 ![Resultat_scraping](https://i.imgur.com/BhFgcai.png)
 
