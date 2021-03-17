@@ -1,4 +1,4 @@
-DELIMITER //
+DELIMITER // 
 CREATE DEFINER=`user`@`host` PROCEDURE `insert_sms_ag`(IN table_name VARCHAR(30))
 BEGIN
 
