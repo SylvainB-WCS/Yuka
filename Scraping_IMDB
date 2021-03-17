@@ -108,3 +108,12 @@ def scrap_all():
     resultat_imdb['Lien Subscene'] = url_title['Url']
   
   return resultat_imdb
+  
+  
+  ### Affichage des images :
+from IPython.core.display import display, HTML
+
+def path_to_image_html(path):
+    return '<img src="'+ path + '" style=max-height:124px;"/>'
+    
+display(HTML(resultat_imdb.to_html(escape=False ,formatters=dict(Image=path_to_image_html))))
