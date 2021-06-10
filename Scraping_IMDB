@@ -1,8 +1,38 @@
-## Imports 
+## ~~ Imports ~~ ##
+
+## Mailing
+
+import datetime
+
+import base64
+import os
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import (Mail, Attachment, FileContent, FileName, FileType, Disposition)
+
+today = datetime.date.today()
+
+## ~~ Fonction de scraping ~~ ## 
+
+## Imports
 import pandas as pd
 import numpy as np
 from bs4 import BeautifulSoup
 import requests
+
+## Imports Selenium / geckodriver
+
+import urllib.request
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.common.by import By
+import time
+
+## Initialisation driver :
+
+options =  Options()
+options.add_argument('--headless')
+driver = webdriver.Firefox(options = options, executable_path = "/home/projet_imdb/geckodriver")
+
 
 def scrap_all():
   ## SUBSCENE ##
@@ -35,6 +65,7 @@ def scrap_all():
         liste_url.append(individual_url)
 
   ## Récupération lien à partir de l'url  + nom du film
+
   for each in liste_url:
     url_each = each
     titre_each = each.split("/subtitles/")[1].split('/english/')[0]
@@ -58,6 +89,8 @@ def scrap_all():
 
   url_title['lien_imdb'] = liste_liens_imdb
 
+  # print(liste_liens_imdb)
+
   ##
   ## IMDB : ##
 
@@ -68,52 +101,158 @@ def scrap_all():
   note_imdb = ''
   genre_imdb = ''
   image_imdb = ''
-
+  nom_imdb_sansdate = ''
+ 
   ## DF Vide :
 
-  resultat_imdb = pd.DataFrame(columns=['Titre','Note','Image','Genres','Duree'])
+  resultat_imdb = pd.DataFrame(columns=['Titre','Note','Genres','Duree'])
 
-  ## Boucle :
+  ## Boucle sur tous les éléments mis en évidence sur Subscene:
 
   for i in range(len(url_title)):
     film = url_title.iloc[i,2]
 
-    html_imdb = requests.get(film)
-    soup_imdb= BeautifulSoup(html_imdb.text, 'html.parser')
+    # print(film)
 
-    ## Nom du film  :
-    find_nom = soup_imdb.find_all('h1', {'class':''})
-    nom_imdb = find_nom[0].get_text().replace('\xa0',' ').strip()
+    ## Initialisation driver :
 
-    ## Genre(s):
-    find_genre = soup_imdb.select('.subtext')
-    genre_imdb = find_genre[0].get_text().split('|')[2].replace('\n','')
+    driver = webdriver.Firefox(options = options, executable_path = "/home/projet_imdb/geckodriver")
+    driver.get(film)
+    ## Scroll automatique jusqu'au bas de la page 
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return lenOfPage;")
+    ## Temporisation de 10 secondes
+    time.sleep(10)
 
-    ## Durée du film :
-    find_duree = soup_imdb.select('.subtext time')
-    duree_imdb = find_duree[0].get_text().strip()
+    ## Détermination de la version IMDB :
+    ## On détecte la version en fonction de la longueur du résultat d'un sélecteur CSS:
+    ## Test logique :
 
-    ## Note du film :
-    find_note = soup_imdb.select('.ratingValue span')
-    note_imdb = find_note[0].get_text()
+    if (len(driver.find_elements(By.CSS_SELECTOR,".TitleHeader__TitleText-sc-1wu6n3d-0")) == 0):
 
-    ## Image du film :
-    find_image = soup_imdb.select('.poster img')
-    image_imdb = find_image[0].get('src')
+        print("Ancienne version")
+        ## Nom du film  :
+        find_nom = driver.find_element_by_css_selector(".title_wrapper > h1")
+        nom_imdb = find_nom.text.strip()
+
+        ## Genre(s):
+        find_genre = driver.find_element_by_css_selector('.subtext')
+        genre_imdb = find_genre.text.split("|")[-2].strip()
+
+        ## Durée du film :
+        find_duree = driver.find_element_by_css_selector('.subtext time')
+        duree_imdb = find_duree.text.strip()
+
+        ## Note du film :
+        find_note = driver.find_element_by_css_selector('.ratingValue span')
+        note_imdb = find_note.text.strip()
+
+        driver.quit()
+        # print(i)
+
+    else:
+
+        print("Nouvelle version")
+        ## Nom du film  :
+        find_nom = driver.find_element_by_css_selector(".TitleHeader__TitleText-sc-1wu6n3d-0")
+        nom_imdb_sansdate = find_nom.text.strip()
+
+        find_date = driver.find_element_by_css_selector(".TitleBlock__TitleMetaDataContainer-sc-1nlhx7j-4.cgfrOx > ul > li:nth-child(1) > a").text
+
+        nom_imdb = nom_imdb_sansdate + " (" + find_date + ")"
+
+        ## Genre(s):
+        find_genre = driver.find_element_by_css_selector(".GenresAndPlot__GenresChipList-cum89p-6")
+        genre_imdb = find_genre.text.replace("\n",", ")
+
+        ## Durée du film :
+        find_duree = driver.find_element_by_css_selector(".TitleBlock__TitleMetaDataContainer-sc-1nlhx7j-4.cgfrOx > ul > li:last-child")
+        duree_imdb = find_duree.text.strip()
+
+        ## Note du film :
+        find_note = driver.find_element_by_css_selector(".AggregateRatingButton__RatingScore-sc-1il8omz-1")
+        note_imdb = find_note.text.strip()
+
+        driver.quit()
+        # print(i)
 
     ## Dans le DF :
-    row= {'Titre': nom_imdb, 'Note' : note_imdb ,'Image' : image_imdb, 'Genres' : genre_imdb,'Duree' : duree_imdb}
+    row= {'Titre': nom_imdb, 'Note' : note_imdb , 'Genres' : genre_imdb,'Duree' : duree_imdb}
     resultat_imdb = resultat_imdb.append(row,ignore_index=True)
 
-    resultat_imdb['Lien Subscene'] = url_title['Url']
-  
-  return resultat_imdb
-  
-  
-  ### Affichage des images :
-from IPython.core.display import display, HTML
+    resultat_imdb['Lien_IMDB'] = url_title['lien_imdb']
+    resultat_imdb['Lien_Subscene'] = url_title['Url']
 
-def path_to_image_html(path):
-    return '<img src="'+ path + '" style=max-height:124px;"/>'
-    
-display(HTML(resultat_imdb.to_html(escape=False ,formatters=dict(Image=path_to_image_html))))
+  return resultat_imdb
+
+
+
+
+## Appel ##
+
+tableau_resultat = scrap_all()
+
+
+
+## ~~ Film Push et Archive ~~ ##
+
+film_push = pd.DataFrame(columns=['Titre','Note','Genres','Duree','Lien_IMDB','Lien_Subscene'])
+
+try :
+  archive_imdb = pd.read_csv(filepath_or_buffer= "archive_imdb.csv", sep=";", index_col= None, usecols=['Titre','Note','Genres','Duree','Lien_IMDB','Lien_Subscene'])
+except :
+  archive_imdb = pd.DataFrame(columns=['Titre','Note','Genres','Duree','Lien_IMDB','Lien_Subscene'])
+
+if archive_imdb.empty :
+  film_push = tableau_resultat
+else :
+  for j in range(len(tableau_resultat)):
+    film_scrape = tableau_resultat.iloc[j,4]
+    if film_scrape not in list(archive_imdb['Lien_IMDB']):
+      film_push = film_push.append(tableau_resultat.iloc[j,:])
+
+
+## ~~ Mise en archive  ~~ ##
+
+nouvelle_archive = pd.concat([archive_imdb,film_push], axis = 0)
+nouvelle_archive.reset_index(inplace = True, drop = True)
+nouvelle_archive.to_csv(path_or_buf= "archive_imdb.csv", sep = ";", index = False)
+nouvelle_archive.to_csv(path_or_buf= "archive_imdb_{}.csv".format(today.strftime('%d-%m-%Y')), sep = ";", index = False)
+
+
+
+## ~~ Contenu du mail ~~ ##
+html_essai = """\
+<html>
+  <head></head>
+  <body>
+  <h2> Voici les films de la semaine :</h2>
+    {0}
+  </body>
+</html>
+""".format(film_push.to_html())
+
+
+
+## ~~ PUSH Sendgrid ~~ ##
+
+message = Mail(
+    from_email='************',
+    to_emails=['***********', '*********'],
+    subject="Update IMDB - {}".format(today.strftime('%d/%m/%Y')),
+    html_content=html_essai)
+
+with open('archive_imdb.csv', 'rb') as f:
+    data = f.read()
+    f.close()
+encoded_file = base64.b64encode(data).decode()
+
+attachedFile = Attachment(
+    FileContent(encoded_file),
+    FileName('archive_imdb_{}.csv'.format(today.strftime('%d-%m-%Y'))),
+    FileType('application/csv'),
+    Disposition('attachment')
+)
+message.attachment = attachedFile
+
+sg = SendGridAPIClient('**************************************')
+response = sg.send(message)
