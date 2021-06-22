@@ -112,8 +112,6 @@ def scrap_all():
   for i in range(len(url_title)):
     film = url_title.iloc[i,2]
 
-    # print(film)
-
     ## Initialisation driver :
 
     driver = webdriver.Firefox(options = options, executable_path = "/home/projet_imdb/geckodriver")
@@ -147,7 +145,6 @@ def scrap_all():
         note_imdb = find_note.text.strip()
 
         driver.quit()
-        # print(i)
 
     else:
 
@@ -173,7 +170,6 @@ def scrap_all():
         note_imdb = find_note.text.strip()
 
         driver.quit()
-        # print(i)
 
     ## Dans le DF :
     row= {'Titre': nom_imdb, 'Note' : note_imdb , 'Genres' : genre_imdb,'Duree' : duree_imdb}
